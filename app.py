@@ -18,6 +18,45 @@ def normalize_allergies(raw_value):
     return [item for item in items if item]
 
 
+def validate_profile(profile):
+    """Validate required profile fields before generating a meal plan."""
+    if not isinstance(profile, dict):
+        raise ValueError("Profile data must be provided as a dictionary.")
+
+    name = str(profile.get("name", "")).strip()
+    if not name:
+        raise ValueError("Please enter a name for the person this plan is for.")
+
+    try:
+        days = int(profile.get("days", 3))
+    except (TypeError, ValueError):
+        raise ValueError("Number of days must be a valid integer.") from None
+    if days < 1 or days > 7:
+        raise ValueError("Number of days must be between 1 and 7.")
+
+    budget_raw = profile.get("budget", "0")
+    try:
+        budget = float(str(budget_raw).strip())
+    except ValueError:
+        raise ValueError("Budget must be a valid number in dollars.") from None
+    if budget <= 0:
+        raise ValueError("Budget must be greater than zero.")
+
+    allergies = normalize_allergies(profile.get("allergies", []))
+    likes = profile.get("likes", [])
+    if isinstance(likes, str):
+        likes = [item.strip() for item in likes.split(",") if item.strip()]
+    likes = [str(item).strip() for item in likes if str(item).strip()]
+
+    profile["name"] = name
+    profile["days"] = days
+    profile["budget"] = str(budget)
+    profile["allergies"] = allergies
+    profile["likes"] = likes
+
+    return profile
+
+
 def build_prompt(profile):
     """Create a prompt for a local open-source model to generate a meal plan."""
     name = profile.get("name", "Friend")
@@ -138,7 +177,7 @@ def build_profile_from_args(args):
     if not profile["schedule"]:
         profile["schedule"] = input("Any schedule notes or cooking constraints? (blank if none): ").strip()
 
-    return profile
+    return validate_profile(profile)
 
 
 def parse_args():
@@ -156,10 +195,13 @@ def parse_args():
 
 def main():
     args = parse_args()
-    profile = build_profile_from_args(args)
 
     try:
+        profile = build_profile_from_args(args)
         plan = generate_plan(profile, model=args.model)
+    except ValueError as exc:
+        print(f"Invalid input: {exc}")
+        return 1
     except RuntimeError as exc:
         print(f"Local plan generation unavailable: {exc}")
         print("\nSample fallback plan:\n")

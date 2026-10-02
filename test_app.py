@@ -1,4 +1,4 @@
-from app import build_prompt, create_fallback_plan, normalize_allergies
+from app import build_prompt, create_fallback_plan, normalize_allergies, validate_profile
 
 
 def test_normalize_allergies():
@@ -42,3 +42,11 @@ def test_create_fallback_plan_has_useful_details():
     assert "peanuts" in plan.lower()
     assert "overnight oats" in plan.lower()
     assert "spinach" in plan.lower()
+
+
+def test_validate_profile_rejects_invalid_days_or_budget():
+    try:
+        validate_profile({"name": "Ava", "days": 0, "budget": "0"})
+        assert False, "Expected ValueError for invalid days/budget"
+    except ValueError:
+        pass

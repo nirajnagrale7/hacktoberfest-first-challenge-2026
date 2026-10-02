@@ -1,6 +1,6 @@
 from flask import Flask, render_template_string, request
 
-from app import create_fallback_plan, generate_plan
+from app import create_fallback_plan, generate_plan, validate_profile
 
 app = Flask(__name__)
 
@@ -107,7 +107,7 @@ HTML_TEMPLATE = """
           </div>
           <div class="row">
             <div>
-              <label>Budget</label>
+              <label>Budget (USD)</label>
               <input name="budget" value="{{ values.get('budget', '40') }}" placeholder="40" />
             </div>
             <div>
@@ -157,9 +157,9 @@ def index():
         }
 
         profile = {
-            "name": values["name"] or "Friend",
-            "days": int(values["days"] or 3),
-            "budget": values["budget"] or "40",
+            "name": values["name"],
+            "days": values["days"],
+            "budget": values["budget"],
             "allergies": values["allergies"],
             "pantry": values["pantry"],
             "likes": values["likes"],
@@ -167,7 +167,10 @@ def index():
         }
 
         try:
-            result = generate_plan(profile)
+            validated = validate_profile(profile)
+            result = generate_plan(validated)
+        except ValueError as exc:
+            result = f"Invalid input: {exc}"
         except RuntimeError:
             result = create_fallback_plan(profile)
 
